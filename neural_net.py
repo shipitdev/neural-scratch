@@ -1,3 +1,23 @@
+"""
+neural_net.py  –  Feedforward neural network built from scratch.
+
+Only dependencies: Python 3 and NumPy.
+No TensorFlow, no PyTorch, no sklearn.  Just matrix math.
+
+Supports:
+  - Arbitrary layer sizes  (e.g. [2, 8, 4, 1])
+  - Sigmoid, ReLU, and tanh activations
+  - MSE loss with vanilla gradient descent
+  - Optional training log
+
+Usage:
+    from neural_net import NeuralNetwork
+
+    nn = NeuralNetwork([2, 4, 1], activation="sigmoid", seed=42)
+    nn.train(X, y, epochs=5000, lr=0.5)
+    predictions = nn.predict(X)
+"""
+
 import numpy as np
 
 def _sigmoid(z):
@@ -25,8 +45,20 @@ _ACTIVATIONS = {
     "tanh":    (_tanh,    _tanh_prime),
 }
 
-
 class NeuralNetwork:
+    """
+    A simple feedforward neural network.
+
+    Parameters
+    ----------
+    layer_sizes : list[int]
+        Number of neurons in each layer, input to output.
+        Example: [2, 8, 1] means 2 inputs, 8 hidden, 1 output.
+    activation : str
+        One of "sigmoid", "relu", or "tanh".
+    seed : int or None
+        Random seed for reproducibility.
+    """
 
     def __init__(self, layer_sizes, activation="sigmoid", seed=None):
         if activation not in _ACTIVATIONS:
@@ -37,6 +69,8 @@ class NeuralNetwork:
         self.act_fn, self.act_deriv = _ACTIVATIONS[activation]
         self.rng = np.random.default_rng(seed)
 
+        # Xavier initialization : keeps variance roughly constant
+        # across layers, which helps training converge faster.
         self.weights = []
         self.biases = []
         for i in range(len(layer_sizes) - 1):
@@ -50,9 +84,11 @@ class NeuralNetwork:
 
         self.loss_history = []
 
-
     def _forward(self, X):
-
+        """
+        Push X through the network, caching each layer's activated
+        output for backprop.
+        """
         activations = [X]
         current = X
 
@@ -64,7 +100,9 @@ class NeuralNetwork:
         return activations
 
     def _backward(self, activations, y, lr):
-        
+        """
+        Backpropagate the error and update weights via gradient descent.
+        """
         m = y.shape[0]  # number of training examples
         delta = (activations[-1] - y) * self.act_deriv(activations[-1])
 
@@ -80,8 +118,19 @@ class NeuralNetwork:
             self.weights[i] -= lr * grad_w
             self.biases[i] -= lr * grad_b
 
-    def train(self, X, y, epochs=5000, lr=0.5, verbose=True):
 
+    def train(self, X, y, epochs=5000, lr=0.5, verbose=True):
+        """
+        Train the network on the provided data.
+
+        Parameters
+        ----------
+        X : ndarray, shape (n_samples, n_features)
+        y : ndarray, shape (n_samples, n_outputs)
+        epochs : int
+        lr : float – learning rate
+        verbose : bool – print progress every 10% of training
+        """
         self.loss_history = []
         print_every = max(1, epochs // 10)
 
@@ -94,10 +143,9 @@ class NeuralNetwork:
             if verbose and (epoch % print_every == 0 or epoch == 1):
                 print(f"  epoch {epoch:>6d}/{epochs}   loss: {loss:.6f}")
 
-
     def predict(self, X):
+        """Run a forward pass and return the output layer's activations."""
         return self._forward(X)[-1]
-
 
 def demo_xor():
     print("=" * 50)
@@ -123,7 +171,11 @@ def demo_xor():
 
 
 def demo_circle():
-
+    """
+    A slightly harder problem: classify points inside vs outside
+    a circle centered at origin.  Shows the network can learn
+    nonlinear decision boundaries beyond just XOR.
+    """
     print("\n")
     print("=" * 50)
     print("  Circle classification  –  nonlinear boundary")
